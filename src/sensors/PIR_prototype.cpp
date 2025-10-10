@@ -1,5 +1,5 @@
 // Methods declarations
-#include "PIR_demo.h"
+#include "PIR_prototype.h"
 //---- Libraries added
 // #include <OneWire.h>
 // #include <DallasTemperature.h>
@@ -23,6 +23,9 @@ boolean startTimer = false;
 //---Checks if motion was detected, sets LED HIGH and starts a timer
 void IRAM_ATTR detectsMovement(void)
 {
+    Serial.println("PIRpinValue:");
+    Serial.println(digitalRead(PIRSensor));
+    Serial.println("Motion DETECTED......");
     motionDetectedFlag = true;
 }
 // Blink LED
@@ -40,17 +43,19 @@ void blinkLedOff()
 void setup()
 {
     Serial.begin( 115200 ); // Serial port for debugging purposes
-    pinMode( PIRSensor, INPUT_PULLUP ); // PIR Motion Sensor mode INPUT_PULLUP
+    pinMode( PIRSensor, INPUT_PULLUP); // PIR Motion Sensor mode INPUT_PULLUP
     pinMode( led, OUTPUT );
     digitalWrite( led, LOW );
     // Set PIRSensor pin as interrupt, assign interrupt function and set RISING mode
-    attachInterrupt( digitalPinToInterrupt( PIRSensor ), detectsMovement, RISING); 
+    // attachInterrupt( digitalPinToInterrupt(PIRSensor), detectsMovement, FALLING); 
     // sensors.begin();
     Serial.println("Setup complete");
 }
 void loop()
 {
-    if (motionDetectedFlag)
+      Serial.println(digitalRead(PIRSensor));
+      delay(500);
+    if ((digitalRead(PIRSensor) == HIGH) && !startTimer)
     {
       motionDetectedFlag = false;
       Serial.println( " MOTION DETECTED " );
@@ -79,14 +84,14 @@ void loop()
         digitalWrite( led, LOW );
         startTimer = false;
     }
-    Serial.println(((millis() - lastTrigger))/ 1000.0);
-  sensors.requestTemperatures(); 
-  float temperatureC = sensors.getTempCByIndex(0);
-  float temperatureF = sensors.getTempFByIndex(0);
-  Serial.print(temperatureC);
-  Serial.println("ºC");
-  Serial.print(temperatureF);
-  Serial.println("ºF");
-  delay(1000);
+    // Serial.println(((millis() - lastTrigger))/ 1000.0);
+  // sensors.requestTemperatures(); 
+  // float temperatureC = sensors.getTempCByIndex(0);
+  // float temperatureF = sensors.getTempFByIndex(0);
+  // Serial.print(temperatureC);
+  // Serial.println("ºC");
+  // Serial.print(temperatureF);
+  // Serial.println("ºF");
+  // delay(1000);
 
 }
