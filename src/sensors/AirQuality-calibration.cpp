@@ -2,6 +2,7 @@
 //  * @file main.cpp
 //  * @brief MQ135 Calibration to determine RZERO value
 //  * @note Run this outdoors in clean air for 12-24 hours
+//  * @note Run this at least 20 minutes before using in a new environment
 //  */
 
 // #include <Arduino.h>
