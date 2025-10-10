@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 #include "DHT.h"
 #include "MQ135.h"
-#include "AIRQuality-Temp_demo.h"
+#include "AirQuality-Temp_prototype.hpp"
 // DHT11 SETTINGS 
 #define DHTPIN 33
 #define DHTTYPE DHT11
