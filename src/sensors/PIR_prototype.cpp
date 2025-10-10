@@ -47,15 +47,15 @@ void setup()
     pinMode( led, OUTPUT );
     digitalWrite( led, LOW );
     // Set PIRSensor pin as interrupt, assign interrupt function and set RISING mode
-    // attachInterrupt( digitalPinToInterrupt(PIRSensor), detectsMovement, FALLING); 
+    attachInterrupt( digitalPinToInterrupt(PIRSensor), detectsMovement, RISING); 
     // sensors.begin();
     Serial.println("Setup complete");
 }
 void loop()
 {
-      Serial.println(digitalRead(PIRSensor));
-      delay(500);
-    if ((digitalRead(PIRSensor) == HIGH) && !startTimer)
+      // Serial.println(digitalRead(PIRSensor));
+      // delay(500);
+    if (motionDetectedFlag && !startTimer)
     {
       motionDetectedFlag = false;
       Serial.println( " MOTION DETECTED " );
@@ -84,14 +84,4 @@ void loop()
         digitalWrite( led, LOW );
         startTimer = false;
     }
-    // Serial.println(((millis() - lastTrigger))/ 1000.0);
-  // sensors.requestTemperatures(); 
-  // float temperatureC = sensors.getTempCByIndex(0);
-  // float temperatureF = sensors.getTempFByIndex(0);
-  // Serial.print(temperatureC);
-  // Serial.println("ºC");
-  // Serial.print(temperatureF);
-  // Serial.println("ºF");
-  // delay(1000);
-
 }
