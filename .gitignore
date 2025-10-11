@@ -2,3 +2,5 @@
 *.pio/
 *.vscode
 logs/
+**/Wifi-c.h
+
