@@ -16,7 +16,7 @@
 #define DHTTYPE DHT11
 extern DHT dht;
 
-const int ledPin = 5;
+const int ledPin = 22;
 extern bool ledState;
 
 //BUZZER configuration
