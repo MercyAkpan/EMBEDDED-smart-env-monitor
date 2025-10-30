@@ -9,7 +9,7 @@ void blinkLedOff();
 void blinkLedOn();
 
 //----Set GPIOs for LED and PIR Motion Sensor
-const int led = 23;
+const int led = 22;
 const int PIRSensor = 4;
 // -----Timer: Auxiliary variables
 #define timeSeconds 100
