@@ -20,12 +20,17 @@ A low-power embedded IoT device built with the ESP32 to continuously monitor ind
 
 📡 Wireless communication (Wi-Fi/MQTT for cloud & dashboard integration)
 
-🌡️ Multi-sensor fusion: BME280 (temperature, humidity, pressure) + Air quality sensors (e.g., CCS811, SGP30, PMS5003)
+🌡️ Multi-sensor fusion: Dht11 (temperature, humidity) + Air quality sensors (MQ135)
 
-🔋 Battery-powered with power management IC (PMIC) for safe charging + usage
-
-⏱️ Duty cycling & low-power modes for extended battery life
+⚡Use of dual power: 
+-  DC power via an AC-DC converter
+-  DC power via a DC-DC converter.
 
 💡 Feedback system: onboard LED/buzzer alerts when poor air quality is detected
 
-📊 Data storage: optional SD card or cloud logging
+📊 Data storage: Micro SD card and cloud logging via firebase realtime database
+
+📊 Cloud & dashboard integration including: NodeRED + Firebase + HiveMQCloud
+
+📊 Future extension:
+- Use of InfluxDB + Grafana for more powerful data manipulation and visualisation.
