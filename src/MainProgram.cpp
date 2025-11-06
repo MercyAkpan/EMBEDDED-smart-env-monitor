@@ -1,7 +1,6 @@
 #include "MainProgram.hpp"
 
 // --------Initialised at global scope----------
-SemaphoreHandle_t clientMutex;
 bool ledState = LOW;
 unsigned long now = millis();
 unsigned long lastTrigger = 0;
@@ -10,25 +9,42 @@ unsigned long blinkNow = millis();
 boolean motionDetectedFlag = false;
 boolean startTimer = false;
 unsigned long lastTimeBotRan = 0;
+
+// --- Sensor data store ---
+// --- Temperature and humidity data store ---
 typedef struct {
   float temperature;
   float humidity;
 } TempHumidityData_t;
-TempHumidityData_t latestSensorData;
+// --- Air Quality data store ---
+typedef struct {
+  float C02concentration;
+} AirQualityData_t;
+TempHumidityData_t latestTempHumData;
+AirQualityData_t latestAirQualityData;
+// --- MQTT data store ---
+typedef struct {
+  float temperature;
+  float humidity;
+  float C02concentration;
+} AllSensorData_t;
+
+// --- Mutexes ---
+SemaphoreHandle_t clientMutex;
+SemaphoreHandle_t TempHumMutex;
+SemaphoreHandle_t AirQulaityMutex;
+
 WiFiClientSecure client;
 // --------------------------
 
 void setup() {
-//------Begin serial connection
+  //------Begin serial connection
   Serial.begin(115200);
 //-------Begin Serial2 connection
   // Serial2.begin(9600);
 //------Initialising sensors
   Serial.println("Initializing sensors...");
-//-----Initialising temperature and humidity sensor
-  dht.begin();
-  delay(2000);
-//------Initialising led pins  
+  //------Initialising led pins  
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
   //   pinMode( led, OUTPUT );
@@ -63,11 +79,22 @@ void setup() {
 //   bool sent = bot.sendMessage(CHAT_ID, "🚀 ESP32 is online and ready!", "");
 //   Serial.println(sent ? "Message sent OK" : "Message failed");
 //--------Initialising Air quality sensor
-Serial.println("Allowing MQ-135 to warm up for 10 seconds...");
+// Serial.println("Allowing MQ-135 to warm up for 10 seconds...");
+// delay(10000);
+// Serial.println("MQ-135 warm-up complete.");
+// Serial.print("Atmospheric standard:");
+//   Serial.println(ATMOCO2);
+//--------Initialising Temperature and humidity sensor
+  dht.begin();
+  Serial.println("Allowing dht-11to warm up for 10 seconds...");
   delay(10000);
-  Serial.println("MQ-135 warm-up complete.");
-  Serial.print("Atmospheric standard:");
-  Serial.println(ATMOCO2);
+  Serial.println("Dht-11 initialisation complete.");
+//--------Initialising MQTT connection. ## did not work
+  // Serial.println("Allowing MQTT client to connect");
+  // reconnect();
+  // delay(20000);
+  // Serial.println("Mqtt connection complete.");
+
 //----Initailising presence sensor
   //   pinMode( PIRSensor, INPUT_PULLUP); // PIR Motion Sensor mode INPUT_PULLUP
 //   // Set PIRSensor pin as interrupt, assign interrupt function and set RISING mode
@@ -76,7 +103,10 @@ Serial.println("Allowing MQ-135 to warm up for 10 seconds...");
   Serial.println("Setup complete");
 //----Initialising mutexes
   clientMutex = xSemaphoreCreateMutex();
+  TempHumMutex = xSemaphoreCreateMutex();
+  AirQulaityMutex = xSemaphoreCreateMutex();
   xTaskCreate(TakeAtmosphericReadingsTask,"ReadAirQuantitiesTask" ,10240,NULL,1,NULL);
+  xTaskCreate(TakeAirQualityReadingsTask,"ReadAirQualityTask" ,10240,NULL,1,NULL);
   xTaskCreate(mqttTask,"MqTTCommunicationTask" ,10240,NULL,1,NULL);
 //   xTaskCreate(PresenceSensorTask,"SensePresenceTask" ,10240,NULL,1,NULL);
 
@@ -87,23 +117,12 @@ Serial.println("Allowing MQ-135 to warm up for 10 seconds...");
 
 
 // // -------------------
-// // Presense Sensing Task
+// // Temperature and humidity reading Task
 void TakeAtmosphericReadingsTask(void *){
   while (1)
   {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xFrequency = pdMS_TO_TICKS(2000);
-    // server.handleClient();
-    
-    // if (millis() - lastTimeBotRan > BOT_MTBS) {
-    //   int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    //   while (numNewMessages) {
-    //     handleNewMessages(numNewMessages);
-    //     numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    //   }
-    //   lastTimeBotRan = millis();
-    // }
-    
+    const TickType_t xFrequency = pdMS_TO_TICKS(2000);   
     float humidity = dht.readHumidity();
     float temperature = dht.readTemperature();
     
@@ -116,30 +135,86 @@ void TakeAtmosphericReadingsTask(void *){
       Serial.print(humidity);
       Serial.println(" %");
     }
-    
-      int analogValue = analogRead(MQ135_PIN);
-      // float voltage = analogValue * (3.3 / 4095.0);
-      float voltage = (analogValue/ 4095.0) * 3.3;
-      float actualVoltage = voltage * VOLTAGE_DIVIDER_RATIO;
-      float ppm = gasSensor.getPPM();
-      float RS = RLOAD *((5.0 / actualVoltage) - 1);
-      float RS_R0 = RS / RZERO;
-      String AirStatus;
-      bool LEDValue;
-      bool BUZZERValue;
-      float CorrectedPPM = gasSensor.getCorrectedPPM(temperature, humidity);
-    
-      if (RS_R0 < 0.05) RS_R0 = 0.05;
-      if (RS_R0 > 20) RS_R0 = 20;
-      Serial.println("This is the ppm of CO2:");
-      Serial.println({ppm});
-      Serial.println("This is the corrected ppm of CO2:");
-      Serial.println({CorrectedPPM});
-      Serial.println("This is the rs:");
-      Serial.println(RS);
-      Serial.println("This is the rs_ro:");
-      Serial.println(RS_R0);
-    
+
+    // {
+    //     AirStatus = "Hazardous";
+    //     LEDValue = true;
+    //     BUZZERValue = true;
+    //     Serial.print("💨 Air Quality:");
+    //     Serial.println({AirStatus});
+    //     Controller(ledPin, LEDValue);
+    //     Controller(BuzzerPin, BUZZERValue);
+    //   }
+    //   else if (ppm > 4000 || RS < 9 || RS_R0 < 0.2)
+    //   {
+    //       AirStatus = "Very Poor";
+    //       LEDValue = true;
+    //       BUZZERValue = true;
+    //       Serial.print("💨 Air Quality:");
+    //       Serial.println({AirStatus});
+    //       Controller(ledPin, LEDValue);
+    //       Controller(BuzzerPin, BUZZERValue);
+    //   }
+    //   else if (ppm > 2000 || RS < 10 || RS_R0 < 0.3)
+    //   {
+    //       AirStatus = "Poor";
+    //       LEDValue = true;
+    //       BUZZERValue = true;
+    //       Serial.print("💨 Air Quality:");
+    //       Serial.println({AirStatus});
+    //       Controller(ledPin, LEDValue);
+    //       Controller(BuzzerPin, BUZZERValue);
+    //   }
+    //   else if (ppm > 1000 || RS < 15 || RS_R0 < 0.6){
+    //       AirStatus = "Bad";
+    //       LEDValue = true; //blinking
+    //       BUZZERValue = false;
+    //       Serial.print("💨 Air Quality:");
+    //       Serial.println({AirStatus});
+    //       Controller(ledPin, LEDValue);
+    //       Controller(BuzzerPin, BUZZERValue);
+    //   }
+    //   else if (ppm > 750 || RS < 17 || RS_R0 < 0.49){
+    //       AirStatus = "Moderate";
+    //       LEDValue = false; 
+    //       BUZZERValue = false;
+    //       Serial.print("💨 Air Quality:");
+    //       Serial.println({AirStatus});
+    //       Controller(ledPin, LEDValue);
+    //       Controller(BuzzerPin, BUZZERValue);
+    //   }
+    //   else
+    //   {
+    //       AirStatus = "Good";
+    //       LEDValue = false;
+    //       BUZZERValue = false;
+    //       Serial.print("💨 Air Quality:");
+    //       Serial.println({AirStatus});
+    //       digitalWrite(ledPin, LOW);
+    //       Controller(ledPin, LEDValue);
+    //       Controller(BuzzerPin, BUZZERValue);
+    //   }
+    if(xSemaphoreTake(TempHumMutex, portMAX_DELAY) == pdTRUE)
+    {
+      latestTempHumData.temperature = temperature;
+      latestTempHumData.humidity = humidity;
+      xSemaphoreGive(TempHumMutex);
+    }
+    Serial.println("--------------------------\n");
+    vTaskDelayUntil(&xLastWakeTime, xFrequency); 
+  }  
+}
+void LogAirQualityValues(float ppm, float correctedPPM, float RS, float RS_R0, float analogValue, float voltage, float actualVoltage)
+{
+    Serial.println("This is the ppm of CO2:");
+    Serial.println({ppm});
+    Serial.println("This is the corrected ppm of CO2:");
+    Serial.println({correctedPPM});
+    Serial.println("This is the rs:");
+    Serial.println(RS);
+    Serial.println("This is the rs_ro:");
+    Serial.println(RS_R0);
+
     Serial.print("Raw analog value: ");
     Serial.print(analogValue);
     Serial.print("  |  Voltage: ");
@@ -148,6 +223,33 @@ void TakeAtmosphericReadingsTask(void *){
     Serial.print("  | Actual Voltage: ");
     Serial.print(actualVoltage);
     Serial.println(" V");
+}
+void TakeAirQualityReadingsTask(void *){
+  while (1)
+  {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xFrequency = pdMS_TO_TICKS(2000);
+
+    int analogValue = analogRead(MQ135_PIN);
+    // float voltage = analogValue * (3.3 / 4095.0);
+    float voltage = (analogValue/ 4095.0) * 3.3;
+    float actualVoltage = voltage * VOLTAGE_DIVIDER_RATIO;
+    float ppm = gasSensor.getPPM();
+    float RS = RLOAD *((5.0 / actualVoltage) - 1);
+    float RS_R0 = RS / RZERO;
+    String AirStatus;
+    bool LEDValue;
+    bool BUZZERValue;
+    float correctedPPM;
+
+    if(xSemaphoreTake(TempHumMutex, portMAX_DELAY) == pdTRUE){
+    correctedPPM = gasSensor.getCorrectedPPM(latestTempHumData.temperature, latestTempHumData.humidity);
+    xSemaphoreGive(TempHumMutex);
+    }
+    LogAirQualityValues(ppm, correctedPPM, RS, RS_R0, analogValue, voltage, actualVoltage);
+      if (RS_R0 < 0.05) RS_R0 = 0.05;
+      if (RS_R0 > 20) RS_R0 = 20;
+
     
     if (ppm > 8000 || RS < 7 || RS_R0 < 0.15)
     {
@@ -208,11 +310,10 @@ void TakeAtmosphericReadingsTask(void *){
           Controller(ledPin, LEDValue);
           Controller(BuzzerPin, BUZZERValue);
       }
-    if(xSemaphoreTake(clientMutex, portMAX_DELAY) == pdTRUE)
+    if(xSemaphoreTake(AirQulaityMutex, portMAX_DELAY) == pdTRUE)
     {
-      latestSensorData.temperature = temperature;
-      latestSensorData.humidity = humidity;
-      xSemaphoreGive(clientMutex);
+      latestAirQualityData.C02concentration = correctedPPM;
+      xSemaphoreGive(AirQulaityMutex);
     }
     Serial.println("--------------------------\n");
     vTaskDelayUntil(&xLastWakeTime, xFrequency); 
@@ -224,7 +325,7 @@ void mqttTask(void *pv)
 {
   const TickType_t xFrequency = pdMS_TO_TICKS(5000); // Publish every 5 seconds
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  TempHumidityData_t dataToPublish;
+  AllSensorData_t dataToPublish;
   while(1)
   {
     if (!mqttClient.connected()) {
@@ -235,23 +336,30 @@ void mqttTask(void *pv)
       vTaskDelayUntil(&xLastWakeTime, xFrequency);
       
       // Acquire the mutex to read the shared data
-      if (xSemaphoreTake(clientMutex, portMAX_DELAY) == pdTRUE) {
+      if (xSemaphoreTake(TempHumMutex, portMAX_DELAY) == pdTRUE) {
         // Critical section: make a local copy of the latest data
-        dataToPublish = latestSensorData;
-        
+        dataToPublish.temperature = latestTempHumData.temperature;
+        dataToPublish.humidity= latestTempHumData.humidity;
+       
         // Release the mutex
-        xSemaphoreGive(clientMutex);
+        xSemaphoreGive(TempHumMutex);
       }
-        // Convert the value to a string
-        // String ir_value_str = String(distance);
+
+      if (xSemaphoreTake(AirQulaityMutex, portMAX_DELAY) == pdTRUE) {
+        // Critical section: make a local copy of the latest data
+        dataToPublish.C02concentration= latestAirQualityData.C02concentration;
+        // Release the mutex
+        xSemaphoreGive(AirQulaityMutex);
+      }
 
         // Publish the latest data
-        String payload = "{\"temp\":" + String(dataToPublish.temperature) + "}";
-        mqttClient.publish("esp32/dht11", payload.c_str());
-        // // Publish the sensor value to the MQTT topic
-        // Serial.print("IR Sensor Value: ");
-        // Serial.println(ir_value_str);
-        // mqttClient.publish(topic_publish_ir, ir_value_str.c_str());
+
+        String payload = "{\"temperature\":" + String(dataToPublish.temperature) + 
+                        ",\"C02Concentration\":" + String(dataToPublish.C02concentration) + 
+                        ",\"humidity\":" + String(dataToPublish.humidity) + "}";
+                // mqttClient.publish("esp32/dht11", payload.c_str());
+        // Publish just the raw temperature value as a string representation of the number
+        mqttClient.publish("esp32/all_sensors", payload.c_str());
       }
 }
 

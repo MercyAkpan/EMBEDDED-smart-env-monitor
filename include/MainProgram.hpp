@@ -12,5 +12,7 @@
 #include "MQTTClient.h"
 void PresenceSensorTask(void *pv);
 void TakeAtmosphericReadingsTask(void *pv);
+void TakeAirQualityReadingsTask(void *pv);
 void mqttTask(void *pv);
+void LogAirQualityValues(float ppm, float correctedPPM, float RS, float RS_R0, float analogValue, float voltage, float actualVoltage);
 #endif // MAIN_PROGRAM_H
