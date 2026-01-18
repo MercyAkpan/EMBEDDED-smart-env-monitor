@@ -1,0 +1,6 @@
+BSSID:98:a9:42:a9:e0:6d, SSID:Airtel_4G_SMARTBOX_E06D
+BSSID:98:ba:5f:89:42:8a, SSID:Gracesoamazing@Elite-Wifi
+BSSID:ca:9a:55:d1:bc:67, SSID:NIT-HUB-1
+BSSID:e4:7d:eb:12:c9:9c, SSID:SMILE 4G LTE-C99C
+BSSID:fc:3f:fc:e0:d8:3b, SSID:Airtel_X25A_D837
+BSSID:fc:3f:fc:e0:d8:3d, SSID:Airtel_X25A_D837_5G
