@@ -1,0 +1,14 @@
+# Ignore the Python Virtual Environment (too big, can be recreated)
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore the AI model (it's a binary file, better to track the code that makes it)
+model.joblib
+
+# Ignore the actual training data (if you want to keep your Github clean)
+training_zones/*.csv
+training_data.csv
+
+# Ignore OS-specific files
+.DS_Store

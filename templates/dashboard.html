@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PROJECT APEX | Control Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 20px; }
+        h1 { color: #ff4444; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; }
+        
+        /* Metric Cards */
+        .stats-grid { display: flex; justify-content: space-around; margin-bottom: 30px; gap: 20px; }
+        .card { background: #222; padding: 20px; border-radius: 12px; border-top: 4px solid #444; width: 30%; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .card h2 { margin: 0; font-size: 0.9em; color: #aaa; }
+        .card .value { font-size: 2.5em; font-weight: bold; margin: 10px 0; color: #fff; }
+        .card.danger { border-top-color: #ff4444; }
+        .card.safe { border-top-color: #00c851; }
+
+        /* Charts */
+        .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .chart-container { background: #1a1a1a; padding: 15px; border-radius: 10px; height: 250px; }
+
+        /* Camera Section */
+        #video-wrapper { margin-top: 20px; display: none; }
+        #video-feed { width: 100%; max-width: 640px; border: 4px solid #333; border-radius: 10px; }
+        .btn { padding: 15px 40px; background: #ff4444; color: white; border: none; border-radius: 30px; cursor: pointer; font-size: 1.1em; transition: 0.3s; }
+        .btn:hover { background: #cc0000; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+    <h1>🚀 Project Apex: Fire Hazard Dashboard</h1>
+
+    <div class="stats-grid">
+        <div class="card" id="temp-card">
+            <h2>Temperature</h2>
+            <div class="value"><span id="live-temp">--</span>°C</div>
+        </div>
+        <div class="card" id="gas-card">
+            <h2>Air Quality (CO2)</h2>
+            <div class="value"><span id="live-gas">--</span> PPM</div>
+        </div>
+        <div class="card" id="hum-card">
+            <h2>Humidity</h2>
+            <div class="value"><span id="live-hum">--</span>%</div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-container"><canvas id="tempChart"></canvas></div>
+        <div class="chart-container"><canvas id="gasChart"></canvas></div>
+        <div class="chart-container"><canvas id="humChart"></canvas></div>
+    </div>
+
+    <button id="camBtn" class="btn" onclick="toggleCamera()">🎥 VIEW LIVE CAMERA</button>
+    <div id="video-wrapper">
+        <img id="video-feed" src="">
+    </div>
+
+    <script>
+        let isStreaming = false;
+
+        function toggleCamera() {
+            const wrapper = document.getElementById('video-wrapper');
+            const img = document.getElementById('video-feed');
+            const btn = document.getElementById('camBtn');
+            if(!isStreaming) {
+                img.src = "/video_feed";
+                wrapper.style.display = "block";
+                btn.innerText = "❌ CLOSE FEED";
+                isStreaming = true;
+            } else {
+                img.src = "";
+                wrapper.style.display = "none";
+                btn.innerText = "🎥 VIEW LIVE CAMERA";
+                isStreaming = false;
+            }
+        }
+
+        // Configuration for Charts
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: false, grid: { color: '#333' } }, x: { display: false, grid: { display: false } } },
+            plugins: { legend: { labels: { color: '#fff' } } }
+        };
+
+        const ctxT = document.getElementById('tempChart').getContext('2d');
+        const ctxG = document.getElementById('gasChart').getContext('2d');
+        const ctxH = document.getElementById('humChart').getContext('2d');
+
+        let tempChart = new Chart(ctxT, { type: 'line', options: chartOptions, data: { labels: [], datasets: [{label: 'Temp °C', data: [], borderColor: '#ffbb33', tension: 0.3}] } });
+        let gasChart = new Chart(ctxG, { type: 'line', options: chartOptions, data: { labels: [], datasets: [{label: 'CO2 PPM', data: [], borderColor: '#ff4444', tension: 0.3}] } });
+        let humChart = new Chart(ctxH, { type: 'line', options: chartOptions, data: { labels: [], datasets: [{label: 'Humidity %', data: [], borderColor: '#0099cc', tension: 0.3}] } });
+
+        setInterval(async () => {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                // Update Big Text Values
+                document.getElementById('live-temp').innerText = data.temperature;
+                document.getElementById('live-gas').innerText = data.C02Concentration;
+                document.getElementById('live-hum').innerText = data.humidity;
+
+                // Color Coding for Danger (Gas > 700)
+                if(data.C02Concentration > 700) {
+                    document.getElementById('gas-card').style.borderColor = "#ff4444";
+                    document.getElementById('live-gas').style.color = "#ff4444";
+                } else {
+                    document.getElementById('gas-card').style.borderColor = "#00c851";
+                    document.getElementById('live-gas').style.color = "#fff";
+                }
+
+                // Update All 3 Charts
+                [ [tempChart, data.temperature], [gasChart, data.C02Concentration], [humChart, data.humidity] ].forEach(([chart, val]) => {
+                    if(chart.data.labels.length > 15) chart.data.labels.shift();
+                    chart.data.labels.push(now);
+                    if(chart.data.datasets[0].data.length > 15) chart.data.datasets[0].data.shift();
+                    chart.data.datasets[0].data.push(val);
+                    chart.update('none'); // 'none' for smoother performance on Pi 3
+                });
+            } catch (e) { console.log("Waiting for data..."); }
+        }, 2000);
+    </script>
+</body>
+</html>

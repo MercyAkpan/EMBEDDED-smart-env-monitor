@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>APEX | Fire Hazard Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; text-align: center; }
+        .grid { display: flex; justify-content: space-around; padding: 20px; }
+        .chart-container { width: 45%; background: #2d2d2d; border-radius: 10px; padding: 10px; }
+        #video-feed { width: 480px; border: 3px solid #ff4444; border-radius: 8px; display: none; margin: 20px auto; }
+        .btn { padding: 15px 30px; background: #ff4444; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.2em; }
+        .btn.stop { background: #555; }
+    </style>
+</head>
+<body>
+    <h1>Fire Hazard System Monitor</h1>
+    
+    <div class="grid">
+        <div class="chart-container"><canvas id="tempChart"></canvas></div>
+        <div class="chart-container"><canvas id="gasChart"></canvas></div>
+    </div>
+
+    <button id="camBtn" class="btn" onclick="toggleCamera()">👁️ VIEW LIVE FEED</button>
+    <div id="video-wrapper">
+        <img id="video-feed" src="">
+    </div>
+
+    <script>
+        let isStreaming = false;
+        
+        function toggleCamera() {
+            const img = document.getElementById('video-feed');
+            const btn = document.getElementById('camBtn');
+            if(!isStreaming) {
+                img.src = "/video_feed";
+                img.style.display = "block";
+                btn.innerText = "❌ CLOSE FEED";
+                btn.className = "btn stop";
+                isStreaming = true;
+            } else {
+                img.src = "";
+                img.style.display = "none";
+                btn.innerText = "👁️ VIEW LIVE FEED";
+                btn.className = "btn";
+                isStreaming = false;
+            }
+        }
+
+        // --- Chart Logic ---
+        const ctxT = document.getElementById('tempChart').getContext('2d');
+        const ctxG = document.getElementById('gasChart').getContext('2d');
+        
+        let tempChart = new Chart(ctxT, { type: 'line', data: { labels: [], datasets: [{label: 'Temperature °C', data: [], borderColor: 'orange'}] } });
+        let gasChart = new Chart(ctxG, { type: 'line', data: { labels: [], datasets: [{label: 'CO2 PPM', data: [], borderColor: 'red'}] } });
+
+        setInterval(async () => {
+            const res = await fetch('/api/data');
+            const data = await res.json();
+            const now = new Date().toLocaleTimeString();
+
+            // Update Temperature
+            if(tempChart.data.labels.length > 10) tempChart.data.labels.shift();
+            tempChart.data.labels.push(now);
+            tempChart.data.datasets[0].data.push(data.temperature);
+            tempChart.update();
+
+            // Update Gas
+            if(gasChart.data.labels.length > 10) gasChart.data.labels.shift();
+            gasChart.data.labels.push(now);
+            gasChart.data.datasets[0].data.push(data.C02Concentration);
+            gasChart.update();
+        }, 2000);
+    </script>
+</body>
+</html>
