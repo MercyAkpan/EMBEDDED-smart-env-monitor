@@ -31,7 +31,7 @@ def sensor_logic(sensor_queue, mqtt_queue, alert_queue):
 
         if data:
             print(f"DEBUG [PI-RCV]: {data}")
-            level = calculate_alert_level(data.get('temperature', 0), data.get('C02Concentration', 0))
+            level = calculate_alert_level(data.get('temperature', 0), data.get('C02Concentration', 0), last_sent_level)
             print(f"[SENS] This is level: {level}")
             data['alert_level'] = level # Add this to the JSON
             print(f"[SENS] This is alert_level == {data['alert_level']}")
@@ -55,13 +55,14 @@ def sensor_logic(sensor_queue, mqtt_queue, alert_queue):
                 pass
 
 
-            if level > 0 and not fire_alert_active:
+            if level != last_sent_level:
                 alert_queue.put(data)
-                fire_alert_active = True
-                print("[SYS] Emergency Triggered! Alerting Emergency Process...")
-
-            elif data.get('C02Concentration',0) < 600:
-                fire_alert_active = False # "Reset" once the air is clear
+#                fire_alert_active = True
+                print(f"[SYS] Alert Level Changed: {last_sent_level} -> {level}")
+#                print("[SYS] Emergency Triggered! Alerting Emergency Process...")
+                last_sent_level = level
+#            elif data.get('C02Concentration',0) < 600:
+#                fire_alert_active = False # "Reset" once the air is clear
         
            # This else is optional, but it helps you see if the Serial is empty
         #else:
@@ -107,7 +108,30 @@ def read_esp32_serial(ser):
     return None
 
 
-def calculate_alert_level(temp, gas):
-    if temp > 35 or gas > 8000 or gas > 6000: return 2 # CRITICAL: Fire!
-    if temp > 33 or gas > 3000:  return 1 # WARNING: Smoke/Heat
-    return 0 # SAFE
+#def calculate_alert_level(temp, gas):
+ #   if temp > 35 or gas > 8000 or gas > 6000: return 2 # CRITICAL: Fire!
+  #  if temp > 33 or gas > 3000:  return 1 # WARNING: Smoke/Heat
+   # return 0 # SAFE
+
+
+# Track the state globally in sensors_logic
+def calculate_alert_level(temp, gas, prev_level):
+    # --- LEVEL 2 (CRITICAL) ---
+    if temp >= 35 or gas >= 6000:
+        return 2
+    
+    # --- LEVEL 1 (WARNING) ---
+    if temp >= 33 or gas >= 3000:
+        # If we were already at Level 2, stay at Level 2 until we drop further
+        if prev_level == 2 and (temp > 34.5 or gas > 5500):
+            return 2
+        return 1
+
+    # --- LEVEL 0 (SAFE) with Hysteresis ---
+    # We only return to 0 if the values drop significantly below the warning line
+    # This prevents the "flicker" at 33 degrees
+    if temp < 32.5 and gas < 2500:
+        return 0
+    
+    # If we are in the "middle zone", stay at the previous level
+    return prev_level

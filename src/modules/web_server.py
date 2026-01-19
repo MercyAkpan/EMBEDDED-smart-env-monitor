@@ -44,8 +44,9 @@ def data_collector(sensor_queue):
 def generate_frames():
     """Camera Generator: Only runs when the user views the stream"""
     # For IP Camera, use 'http://admin:password@192.168.1.XX/video'
+    IP_CAMERA_URL = "rtsp://192.168.43.218:554/12"
     # For USB/Pi Cam, use 0
-    camera = cv2.VideoCapture(0) 
+    camera = cv2.VideoCapture(IP_CAMERA_URL) 
     while True:
         success, frame = camera.read()
         if not success:
