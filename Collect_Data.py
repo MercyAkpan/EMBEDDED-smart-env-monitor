@@ -42,13 +42,13 @@ def collect_data_loop():
             break
 
 def perform_collection(file_path, anchors):
-    """Internal helper to handle the actual 10-scan burst."""
-    print(f"Starting 10-scan burst. Keep Pi STILL...")
+    """Internal helper to handle the actual 30-scan burst."""
+    print(f"Starting 30-scan burst. Keep Pi STILL...")
     
     with open(file_path, "w", newline='') as f:
         writer = csv.writer(f)
-        scans_max = 10
-        for i in range(1, 11):
+        scans_max = 30
+        for i in range(1, (scans_max + 1)):
             time.sleep(2)
             try:
                 raw_data = get_filtered_wifi_scan(min_rssi=-100)
