@@ -2,23 +2,26 @@ import time
 import joblib
 import numpy as np
 # Importing from your project structure
+from collections import deque
 from Scan_Wifi.Scan_Wifi import get_filtered_wifi_scan
 from utils.loader import load_golden_routers
 from utils.processor import get_smoothed_features
 
+prediction_buffer = deque(maxlen=7)
 def run_project_apex():
     print("--- Project Apex: Initializing Alert System ---")
 
     # 1. SETUP: Load the AI Brain and Golden Routers
     try:
-        model = joblib.load("model.joblib")
+        MODEL_NAME = 'model2.joblib'
+        model = joblib.load(MODEL_NAME)
         anchors = load_golden_routers()
         if not anchors:
             print("CRITICAL ERROR: No Golden Routers found in KnownNetworks.txt")
             return
         print(f"Loaded {len(anchors)} Golden Routers. AI Model ready.")
     except Exception as e:
-        print(f"CRITICAL ERROR: Could not load model.joblib: {e}")
+        print(f"CRITICAL ERROR: Could not load {MODEL_NAME}: {e}")
         print("Hint: Did you run Train_Model.py first?")
         return
 
@@ -42,9 +45,12 @@ def run_project_apex():
             feature_vector = np.array([features], dtype=np.float32)
             prediction = model.predict(feature_vector)[0]
 
+            prediction_buffer.append(prediction)
+            smoothed_prediction = max(set(prediction_buffer), key=list(prediction_buffer).count)
+
             # 5. OUTPUT: Show the location to the user/judges
-            print(f"[STEP 2] Fingerprint: {features}")
-            print(f"[STEP 3] AI DECISION: You are currently at -> **{prediction}**")
+            print(f"[BUFFER] History: {list(prediction_buffer)}")
+            print(f"[STEP 2] AI DECISION: You are currently at -> **{smoothed_prediction}**")
 
             # --- 6. FIRE ALERT LOGIC (Placeholder for next phase) ---
             # smoke = read_smoke_sensor() 
