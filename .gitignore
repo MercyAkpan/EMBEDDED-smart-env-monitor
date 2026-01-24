@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 
 # Ignore the AI model (it's a binary file, better to track the code that makes it)
-model.joblib
+*.joblib
 
 # Ignore the actual training data (if you want to keep your Github clean)
 training_zones/*.csv
