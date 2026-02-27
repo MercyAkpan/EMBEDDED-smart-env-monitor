@@ -5,7 +5,7 @@ from src.modules.sensors import sensor_logic
 from src.modules.emergency import emergency_logic
 from src.modules.web_server import run_web_process
 from src.modules.mqtt import mqtt_worker 
-
+from src.modules.audio_deterrent import AudioDeterent
 
 if __name__ == "__main__":
     print("[INIT] Project Apex: Fire Hazard System Starting...")
