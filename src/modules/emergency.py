@@ -2,6 +2,7 @@ import RPi.GPIO as GPIO
 import time
 import threading
 from src.core.event_bus import bus
+from src.modules.audio_deterrent import AudioDeterrent
 
 # Pin Setup (Adjust these to your physical wiring)
 LED_PIN = 4
@@ -21,6 +22,7 @@ class HardwareAlerts:
 
     def update_status(self, event, data):
         """Updates the internal level when sensors.py sends new data"""
+        print(f"[HARD_W] Status update...")
         self.current_level = data.get('alert_level', 0)
 
     def blink_loop(self):
@@ -81,6 +83,7 @@ def emergency_logic(alert_queue):
     # Initialize local event subscribers
     hw = HardwareAlerts()
     gsm = GSMNotifier()
+    hil = AudioDeterrent()
     
     while True:
         data = alert_queue.get() # Waits for Alert Level 1 or 2
