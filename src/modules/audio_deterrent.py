@@ -8,7 +8,7 @@ from src.core.event_bus import bus
 
 class AudioDeterrent:
 
-    ALERT_INTERVAL = 5.0 # Seconds between warnings
+    ALERT_INTERVAL = 7.0 # Seconds between warnings
     last_warning_sent = 0
     last_critical_sent = 0
     CRITICAL_THRESHOLD = 10
@@ -19,11 +19,12 @@ class AudioDeterrent:
         pygame.mixer.pre_init(44100, -16, 2, 4096)
         pygame.mixer.init()
         # Load your files
-        self.base_dir = "/home/mercy_smart_home/firehazard_detector_system/alert_files"
+        self.base_dir = "/home/mercy_smart_home/firehazard_detector_system/alert_files/air_quality_alerts"
         # Store the string paths for paplay
-        self.path_warning = os.path.join(self.base_dir, "Warning_alert.wav")
-        self.path_critical = os.path.join(self.base_dir, "Critical_alert.wav")
-    
+        self.path_warning_1 = os.path.join(self.base_dir, "AIR_WARNING_1.wav")
+        self.path_warning_2 = os.path.join(self.base_dir, "AIR_WARNING_2.wav")
+        self.path_critical_1 = os.path.join(self.base_dir, "AIR_CRITICAL_1.wav")
+        self.path_critical_2 = os.path.join(self.base_dir, "AIR_CRITICAL_2.wav")
         # State Flags
         self.is_critical_active = False
         self.is_warning_active = False
@@ -81,11 +82,11 @@ class AudioDeterrent:
                 
                 if (now - self.critical_state_time > self.CRITICAL_THRESHOLD) and (now - self.last_critical_sent) > self.ALERT_INTERVAL:
                     print("[AUDIO] Playing Escalacted Critical Alarm")
-                    self.play_audio_direct(self.path_critical)
+                    self.play_audio_direct(self.path_critical_2)
                     self.last_critical_sent = now
                 elif (now - self.last_critical_sent) > self.ALERT_INTERVAL:
                     print("[AUDIO] Playing Critical Alert")
-                    self.play_audio_direct(self.path_critical)
+                    self.play_audio_direct(self.path_critical_1)
                     self.last_critical_sent = now
 
 
@@ -97,12 +98,12 @@ class AudioDeterrent:
 
                 if (now - self.warning_state_time > self.CRITICAL_THRESHOLD) and (now - self.last_warning_sent) > self.ALERT_INTERVAL:
                     print("[AUDIO] Playing Escalacted Warning Alarm")
-                    self.play_audio_direct(self.path_warning)
+                    self.play_audio_direct(self.path_warning_2)
                     self.last_warning_sent = now
 
                 elif (now - self.last_warning_sent) > self.ALERT_INTERVAL:
                     print("[AUDIO] Playing Warning Alert")
-                    self.play_audio_direct(self.path_warning)
+                    self.play_audio_direct(self.path_warning_1)
                     self.last_warning_sent = now
             else: # Level is 0
                 if self.is_warning_active or self.is_critical_active:

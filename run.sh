@@ -6,4 +6,4 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-sudo ./.venv/bin/python3 "$1"
+./.venv/bin/python3 "$1"
