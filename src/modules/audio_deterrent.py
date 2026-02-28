@@ -11,6 +11,9 @@ class AudioDeterrent:
     ALERT_INTERVAL = 5.0 # Seconds between warnings
     last_warning_sent = 0
     last_critical_sent = 0
+    CRITICAL_THRESHOLD = 10
+
+
     def __init__(self):
         print(f"[AUDIO] Initialising...")
         pygame.mixer.pre_init(44100, -16, 2, 4096)
@@ -23,13 +26,16 @@ class AudioDeterrent:
     
         # State Flags
         self.is_critical_active = False
+        self.is_warning_active = False
         self.warning_count = 0
         self.stop_event = threading.Event()
         self.is_silenced_by_operator = False
-        self.current_level = 2
+        self.current_level = 0
         self.alert_count = 0
         self.last_warning_sent = 0
         self.last_critical_sent = 0
+        self.last_critical2_sent = 0
+
 
         # Subscriptions
 #        bus.subscribe("ALERT_UPDATE", self.handle_alerts)
@@ -43,7 +49,7 @@ class AudioDeterrent:
     def update_status(self, event, data):
         """Updates the internal level when sensors.py sends new data"""
         print(f"[AUDIO] Updating status....")
-        #self.current_level = data.get('alert_level', 0)
+        self.current_level = data.get('alert_level', 0)
         print(f"[AUDIO] Printing Current_level : {self.current_level}")
 
     def check_if_stopped_by_web(self):
@@ -66,23 +72,45 @@ class AudioDeterrent:
 #            print(f"""[AUDIO] Current_Level = {self.current_level}, is_critical_active : {self.is_critical_active}
 #            Pygame status is not: {pygame.mixer.get_busy()}""")
 
-            if (self.current_level == 2) and (now - self.last_critical_sent) > self.ALERT_INTERVAL:
-                self.is_critical_active = True
-                #pygame.mixer.fadeout(500) # Immediately kills the Warning sound if it's playing
-                #time.sleep(0.2)
-                print("[AUDIO] CRITICAL override: Playing Critical Alert")
-            # Play critical alert in a loop or once
-                print("[AUDIO] Playing Critical Pulse")
-                self.play_audio_direct(self.path_critical)
-                self.last_critical_sent = now
-                #self.snd_critical.play() # Loops until ALARM_STOP
+            if (self.current_level == 2):
+                if not (self.is_critical_active):
+                    subprocess.run(["killall", "-q", "paplay"])
+                    self.is_critical_active = True
+                    self.critical_state_time = now
+                    self.is_warning_active = False
+                
+                if (now - self.critical_state_time > self.CRITICAL_THRESHOLD) and (now - self.last_critical_sent) > self.ALERT_INTERVAL:
+                    print("[AUDIO] Playing Escalacted Critical Alarm")
+                    self.play_audio_direct(self.path_critical)
+                    self.last_critical_sent = now
+                elif (now - self.last_critical_sent) > self.ALERT_INTERVAL:
+                    print("[AUDIO] Playing Critical Alert")
+                    self.play_audio_direct(self.path_critical)
+                    self.last_critical_sent = now
 
-            elif (self.current_level == 1) and (now - self.last_warning_sent) > self.ALERT_INTERVAL: # and (self.alert_count > 3):
-                print("[AUDIO] Playing Warning Alert")
-                #self.snd_warning.play()
-                self.alert_count += 1
-                self.play_audio_direct(self.path_warning)
-                self.last_warning_sent = now
+
+            elif (self.current_level == 1):
+                if not (self.is_warning_active):
+                    self.is_warning_active = True
+                    self.warning_state_time = now
+                    self.is_critical_active = False
+
+                if (now - self.warning_state_time > self.CRITICAL_THRESHOLD) and (now - self.last_warning_sent) > self.ALERT_INTERVAL:
+                    print("[AUDIO] Playing Escalacted Warning Alarm")
+                    self.play_audio_direct(self.path_warning)
+                    self.last_warning_sent = now
+
+                elif (now - self.last_warning_sent) > self.ALERT_INTERVAL:
+                    print("[AUDIO] Playing Warning Alert")
+                    self.play_audio_direct(self.path_warning)
+                    self.last_warning_sent = now
+            else: # Level is 0
+                if self.is_warning_active or self.is_critical_active:
+                    print("[AUDIO] Level 0: Resetting all alert states.")
+                    self.is_warning_active = False
+                    self.is_critical_active = False
+                    # Optional: Kill any lingering paplay sounds
+                    # subprocess.run(["killall", "-q", "paplay"])
             time.sleep(0.1)
 
     def stop_all(self, event_type, data):
