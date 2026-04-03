@@ -12,3 +12,4 @@ training_data.csv
 
 # Ignore OS-specific files
 .DS_Store
+*.swp
