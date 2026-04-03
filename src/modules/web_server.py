@@ -33,7 +33,7 @@ def data_collector(sensor_queue):
     while True:
         try:
             # Block for a short time to get data
-            print(f"[WEB]")
+            #print(f"[WEB]")
             data = sensor_queue.get(timeout=1)
             latest_data = data
             while not sensor_queue.empty():

@@ -3,22 +3,31 @@ import time
 import threading
 from src.core.event_bus import bus
 from src.modules.audio_deterrent import AudioDeterrent
+from src.core import gpio_config
 
 # Pin Setup (Adjust these to your physical wiring)
-LED_PIN = 4
-BUZZER_PIN = 17
+LED_PIN_1 = gpio_config.PINS["LED_1"]
+BUZZER_PIN = gpio_config.PINS["BUZZER"]
+LED_PIN_2 = gpio_config.PINS["LED_2"]
+LED_PIN_3 = gpio_config.PINS["LED_3"]
 
 class HardwareAlerts:
     def __init__(self):
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(LED_PIN, GPIO.OUT)
-        GPIO.setup(BUZZER_PIN, GPIO.OUT)
-        
+        self.led_pin_1 = LED_PIN_1
+        self.led_pin_2 = LED_PIN_2
+        self.led_pin_3 = LED_PIN_3
+        self.buzzer_pin = BUZZER_PIN
+
         self.current_level = 0
         bus.subscribe("ALERT_UPDATE", self.update_status)
         
+
+        # Flags
+        self.running = True
+
         # Start the blink thread immediately
-        threading.Thread(target=self.blink_loop, daemon=True).start()
+        threading.Thread(target=self.blink_loop).start()
+
 
     def update_status(self, event, data):
         """Updates the internal level when sensors.py sends new data"""
@@ -28,28 +37,13 @@ class HardwareAlerts:
     def blink_loop(self):
         """The background 'heartbeat' for your hardware"""
         while True:
-            if self.current_level == 1:
+            if self.running:
                 # LEVEL 1: Only LED Blinks (Slow)
-                GPIO.output(LED_PIN, True)
+                GPIO.output(self.led_pin_1, True)
                 time.sleep(1)
-                GPIO.output(LED_PIN, False)
+                GPIO.output(self.led_pin_1, False)
                 time.sleep(1)
                 GPIO.output(BUZZER_PIN, False) # Ensure buzzer is OFF
-
-            elif self.current_level == 2:
-                # LEVEL 2: LED and Buzzer Pulse (Fast/Urgent)
-                GPIO.output(LED_PIN, True)
-                GPIO.output(BUZZER_PIN, True)
-                time.sleep(1)
-                GPIO.output(LED_PIN, False)
-                GPIO.output(BUZZER_PIN, False)
-                time.sleep(1)
-
-            else:
-                # LEVEL 0: Everything Off
-                GPIO.output(LED_PIN, False)
-                GPIO.output(BUZZER_PIN, False)
-                time.sleep(1) # Sleep longer when safe to save CPU
 
 
 class GSMNotifier:

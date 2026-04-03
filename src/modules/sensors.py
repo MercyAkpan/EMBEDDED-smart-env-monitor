@@ -26,31 +26,31 @@ def sensor_logic(sensor_queue, mqtt_queue, alert_queue):
     ser.reset_input_buffer()
 
     while True:
-        print(f"[SENS] Reading data from esp32...")
+        #print(f"[SENS] Reading data from esp32...")
         data = read_esp32_serial(ser)
 
         if data:
-            print(f"DEBUG [PI-RCV]: {data}")
+            #print(f"DEBUG [PI-RCV]: {data}")
             level = calculate_alert_level(data.get('temperature', 0), data.get('C02Concentration', 0), last_sent_level)
-            print(f"[SENS] This is level: {level}")
+            #print(f"[SENS] This is level: {level}")
             data['alert_level'] = level # Add this to the JSON
             print(f"[SENS] This is alert_level == {data['alert_level']}")
 
 
             # Push to the Cloud Worker
             try:
-                print(f"[SENS] Sending to WEB")
+             #   print(f"[SENS] Sending to WEB")
                 sensor_queue.put_nowait(data)
-                print(f"[SENS] Sent to WEB")
+              #  print(f"[SENS] Sent to WEB")
             except:
                 pass # Queue full, skip to stay real-time
 
 
             # Push to the Web Worker
             try:
-                print(f"[SENS] Sending to MQTT")
+               # print(f"[SENS] Sending to MQTT")
                 mqtt_queue.put_nowait(data)
-                print(f"[SENS] Sent to MQTT")
+                #print(f"[SENS] Sent to MQTT")
             except:
                 pass
 
@@ -117,13 +117,13 @@ def read_esp32_serial(ser):
 # Track the state globally in sensors_logic
 def calculate_alert_level(temp, gas, prev_level):
     # --- LEVEL 2 (CRITICAL) ---
-    if temp >= 35 or gas >= 6000:
+    if temp >= 33.2 or gas >= 6000:
         return 2
     
     # --- LEVEL 1 (WARNING) ---
-    if temp >= 33 or gas >= 3000:
+    if temp >= 32.5 or gas >= 3000:
         # If we were already at Level 2, stay at Level 2 until we drop further
-        if prev_level == 2 and (temp > 34.5 or gas > 5500):
+        if prev_level == 2 and (temp > 32.9 or gas > 5500):
             return 2
         return 1
 
