@@ -24,6 +24,8 @@ class HardwareAlerts:
 
         # Flags
         self.running = True
+        self.led_indicators = False
+        self.critical_alert = False
 
         # Start the blink thread immediately
         threading.Thread(target=self.blink_loop).start()
@@ -37,13 +39,44 @@ class HardwareAlerts:
     def blink_loop(self):
         """The background 'heartbeat' for your hardware"""
         while True:
-            if self.running:
-                # LEVEL 1: Only LED Blinks (Slow)
-                GPIO.output(self.led_pin_1, True)
-                time.sleep(1)
-                GPIO.output(self.led_pin_1, False)
-                time.sleep(1)
-                GPIO.output(BUZZER_PIN, False) # Ensure buzzer is OFF
+
+            if not self.running:
+                time.sleep(0.1)
+                continue
+
+            if self.running and self.current_level == 2:
+                if not self.led_indicators:
+                    self.activate_led_indicators()
+
+                self.activate_buzzer()
+
+            elif self.running and self.current_level == 1:
+                if not self.led_indicators:
+                    self.activate_led_indicators()
+            else:
+                print(f"[LOOP] No alarm...")
+                time.sleep(0.1)
+
+
+    def activate_led_indicators(self):
+        # LEVEL 1: Only LED Blinks (Slow)
+
+        GPIO.output(self.led_pin_1, True)
+        time.sleep(4)
+
+        GPIO.output(self.led_pin_2, True)
+        time.sleep(4)
+
+        GPIO.output(self.led_pin_3, True)
+        time.sleep(4)
+        self.led_indicators = True
+
+    def activate_buzzer(self):
+        #SOUND THE BUZZER
+        GPIO.output(self.buzzer_pin, True)
+        time.sleep(1)
+        GPIO.output(self.buzzer_pin, False)
+        time.sleep(1)
 
 
 class GSMNotifier:
