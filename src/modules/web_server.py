@@ -1,10 +1,11 @@
 import os
 import cv2
-from flask import Flask, render_template, Response, jsonify
+from flask import Flask, request, render_template, Response, jsonify
 import queue
 import threading
 import socket
 from pathlib import Path
+from src.core.event_bus import bus
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 app = Flask(__name__,
@@ -74,6 +75,21 @@ def video_feed():
 @app.route('/api/data')
 def get_sensor_data():
     return jsonify(latest_data)
+
+@app.route('/api/control', methods=['POST'])
+def control():
+    data = request.json
+    action = data.get("action")
+    print(f"[WEB] This is the action: {action}")
+
+    if action == "VENT_OFF":
+        bus.publish("VENT_OFF")
+
+    elif action == "BUZZER_OFF":
+        bus.publish("BUZZER_OFF")
+
+    return {"status": "ok"}
+
 
 def run_web_process(sensor_queue):
     # Start the data collector thread

@@ -20,12 +20,14 @@ class HardwareAlerts:
 
         self.current_level = 0
         bus.subscribe("ALERT_UPDATE", self.update_status)
-        
+        bus.subscribe("VENT_OFF", self.stop_ventilation)
+        bus.subscribe("BUZZER_OFF", self.stop_buzzer)
 
         # Flags
         self.running = True
         self.led_indicators = False
         self.critical_alert = False
+        self.manual_override = False
 
         # Start the blink thread immediately
         threading.Thread(target=self.blink_loop).start()
@@ -45,12 +47,18 @@ class HardwareAlerts:
                 continue
 
             if self.running and self.current_level == 2:
+#                print("[LOOP] Here")
+                if self.manual_override:
+                    continue
                 if not self.led_indicators:
                     self.activate_led_indicators()
 
                 self.activate_buzzer()
 
             elif self.running and self.current_level == 1:
+#                print("[LOOP] No here")
+                if self.manual_override:
+                    continue
                 if not self.led_indicators:
                     self.activate_led_indicators()
             else:
@@ -78,6 +86,26 @@ class HardwareAlerts:
         GPIO.output(self.buzzer_pin, False)
         time.sleep(1)
 
+
+    def stop_ventilation(self):
+        print("Stopping ventilation...")
+
+        GPIO.output(self.led_pin_3, False)
+        time.sleep(1)
+
+        GPIO.output(self.led_pin_2, False)
+        time.sleep(1)
+
+        GPIO.output(self.led_pin_1, False)
+        time.sleep(1)
+
+        self.led_indicators = False
+        self.manual_override = True
+
+
+    def stop_buzzer(self):
+        print("Stopping buzzer...")
+        GPIO.output(self.buzzer_pin, False)
 
 class GSMNotifier:
     def __init__(self):

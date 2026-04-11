@@ -50,13 +50,52 @@
         <div class="chart-container"><canvas id="humChart"></canvas></div>
     </div>
 
-    <button id="camBtn" class="btn" onclick="toggleCamera()">🎥 VIEW LIVE CAMERA</button>
-    <div id="video-wrapper">
-        <img id="video-feed" src="">
+    <div style="margin-top: 30px; text-align: center;">
+    <button class="btn" onclick="controlAction('VENT_OFF')">🛑 STOP VENTILATION</button>
+    <button class="btn" onclick="controlAction('BUZZER_OFF')">🔇 STOP BUZZER</button>
+    <button class="btn" onclick="controlAction('RESET_ALARM')">🔄 RESET ALARM</button>
     </div>
+
+
+    <div id="visual-status" style=" margin-top: 30px; padding: 25px; text-align: center; font-size: 1.5em; font-weight: bold; border-radius: 10px; background: #333; ">
+    ⚠️ VISUAL CONFIRMATION PENDING
+</div>
+<!--    <button id="camBtn" class="btn" onclick="toggleCamera()">🎥 VIEW LIVE CAMERA</button>-->
+<!--    <div id="video-wrapper">-->
+<!--        <img id="video-feed" src="">-->
+<!--    </div>-->
 
     <script>
         let isStreaming = false;
+
+        async function controlAction(action) {
+    try {
+        await fetch('/api/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action })
+        });
+    } catch (e) {
+        console.log("Control failed");
+    }
+} 
+
+
+        function updateVisualStatus(level) {
+    const el = document.getElementById('visual-status');
+
+    if (level === 0) {
+        el.style.background = "#00c851";
+        el.innerText = "✅ SAFE";
+    } else if (level === 1) {
+        el.style.background = "#ffbb33";
+        el.innerText = "⚠️ WARNING - VERIFY";
+    } else if (level === 2) {
+        el.style.background = "#ff4444";
+        el.innerText = "🔥 CRITICAL - ACTION REQUIRED";
+    }
+}
+
 
         function toggleCamera() {
             const wrapper = document.getElementById('video-wrapper');
@@ -110,6 +149,9 @@
                     document.getElementById('gas-card').style.borderColor = "#00c851";
                     document.getElementById('live-gas').style.color = "#fff";
                 }
+
+                // Update visual confirmation
+                   updateVisualStatus(data.alert_level);
 
                 // Update All 3 Charts
                 [ [tempChart, data.temperature], [gasChart, data.C02Concentration], [humChart, data.humidity] ].forEach(([chart, val]) => {
