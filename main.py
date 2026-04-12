@@ -19,16 +19,17 @@ if __name__ == "__main__":
     sensor_queue = mp.Queue()
     alert_queue = mp.Queue()
     mqtt_queue = mp.Queue(maxsize=10)
+    control_queue = mp.Queue()
 
     # 2. Start Independent Processes
     # Process 1: Constant Serial Read & MQTT Publish
     p_sensors = mp.Process(target=sensor_logic, args=(sensor_queue, mqtt_queue, alert_queue))
     p_mqtt = mp.Process(target=mqtt_worker, args=(mqtt_queue, ))
     # Process 2: Flask Web Server (Chart.js + Camera)
-    p_web = mp.Process(target=run_web_process, args=(sensor_queue,))
+    p_web = mp.Process(target=run_web_process, args=(sensor_queue, control_queue))
 
     # Process 3: Emergency Responder (Positioning + GSM)
-    p_emergency = mp.Process(target=emergency_logic, args=(alert_queue,))
+    p_emergency = mp.Process(target=emergency_logic, args=(alert_queue, control_queue))
 
     p_mqtt.start()
     p_web.start()

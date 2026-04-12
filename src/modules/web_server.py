@@ -1,6 +1,6 @@
 import os
 import cv2
-from flask import Flask, request, render_template, Response, jsonify
+from flask import Flask, request, current_app, render_template, Response, jsonify
 import queue
 import threading
 import socket
@@ -82,16 +82,19 @@ def control():
     action = data.get("action")
     print(f"[WEB] This is the action: {action}")
 
-    if action == "VENT_OFF":
-        bus.publish("VENT_OFF")
-
-    elif action == "BUZZER_OFF":
-        bus.publish("BUZZER_OFF")
+    control_queue = current_app.config['CONTROL_QUEUE']
+#    print(f"[WEB] This is the control queue : {control_queue}")
+    if action in ["VENT_OFF", "BUZZER_OFF", "RESET_ALARM"]:
+        print(f"[WEB] Putting in {action} in Control Queue")
+        control_queue.put(action)
 
     return {"status": "ok"}
 
 
-def run_web_process(sensor_queue):
+def run_web_process(sensor_queue, control_queue_param):
+#    global control_queue
+    app.config['CONTROL_QUEUE'] = control_queue_param
+
     # Start the data collector thread
     print(f"[WEB] In the web process")
     t = threading.Thread(target=data_collector, args=(sensor_queue,), daemon=True)

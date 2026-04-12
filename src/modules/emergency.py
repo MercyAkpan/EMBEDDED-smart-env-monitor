@@ -4,6 +4,8 @@ import threading
 from src.core.event_bus import bus
 from src.modules.audio_deterrent import AudioDeterrent
 from src.core import gpio_config
+import queue
+
 
 # Pin Setup (Adjust these to your physical wiring)
 LED_PIN_1 = gpio_config.PINS["LED_1"]
@@ -22,6 +24,7 @@ class HardwareAlerts:
         bus.subscribe("ALERT_UPDATE", self.update_status)
         bus.subscribe("VENT_OFF", self.stop_ventilation)
         bus.subscribe("BUZZER_OFF", self.stop_buzzer)
+        bus.subscribe("RESET_ALARM", self.reset_alarm)
 
         # Flags
         self.running = True
@@ -62,7 +65,7 @@ class HardwareAlerts:
                 if not self.led_indicators:
                     self.activate_led_indicators()
             else:
-                print(f"[LOOP] No alarm...")
+#                print(f"[LOOP] No alarm...")
                 time.sleep(0.1)
 
 
@@ -87,25 +90,33 @@ class HardwareAlerts:
         time.sleep(1)
 
 
-    def stop_ventilation(self):
+    def stop_ventilation(self, event, data):
         print("Stopping ventilation...")
 
         GPIO.output(self.led_pin_3, False)
-        time.sleep(1)
+        time.sleep(2)
 
         GPIO.output(self.led_pin_2, False)
-        time.sleep(1)
+        time.sleep(2)
 
         GPIO.output(self.led_pin_1, False)
-        time.sleep(1)
+        time.sleep(2)
 
         self.led_indicators = False
         self.manual_override = True
 
 
-    def stop_buzzer(self):
+    def stop_buzzer(self, event, data):
         print("Stopping buzzer...")
         GPIO.output(self.buzzer_pin, False)
+        self.manual_override = True
+
+    def reset_alarm(self, event, data):
+        print("Resetting system control...")
+
+        self.manual_override = False
+
+
 
 class GSMNotifier:
     def __init__(self):
@@ -134,12 +145,24 @@ def robo_call_check(self):
         # Here you would check a shared flag or re-check sensors
         print("📞 [GSM] 30s PASSED: Initiating Robo-Call to Police.")
 
-def emergency_logic(alert_queue):
+def emergency_logic(alert_queue, control_queue):
     # Initialize local event subscribers
     hw = HardwareAlerts()
     gsm = GSMNotifier()
     hil = AudioDeterrent()
     
     while True:
-        data = alert_queue.get() # Waits for Alert Level 1 or 2
-        bus.publish("ALERT_UPDATE", data)
+        try:
+            data = alert_queue.get(timeout=0.5)
+            print(f"[EMER] This is data: {data}")
+            bus.publish("ALERT_UPDATE", data)
+        except queue.Empty:
+            pass
+
+        try:
+#            print(f"[EMER] This is the control queue : {control_queue}")
+            action = control_queue.get_nowait()
+            print(f"[EMER] Button pressed is : {action}")
+            bus.publish(action, {})
+        except queue.Empty:
+            pass
